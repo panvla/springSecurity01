@@ -39,7 +39,7 @@ public class UserRepositoryImpl implements UserRepository<User> {
     @Override
     public User create(User user) {
         //Check the email is unique
-        if(getEmailCount(user.getEmail().trim().toLowerCase()) > 0 ) throw new ApiException("Email already in user. Please use a different email and try again");
+        if(getEmailCount(user.getEmail().trim().toLowerCase()) > 0 ) throw new ApiException("Email already in use. Please use a different email and try again");
         //Save new user
         try{
             KeyHolder holder = new GeneratedKeyHolder();
@@ -54,7 +54,8 @@ public class UserRepositoryImpl implements UserRepository<User> {
             user.setNotLocked(true);
             return user;
         } catch (Exception exception){
-            throw new ApiException("An error occurred. Please try again");
+            log.error(exception.getMessage());
+            throw new ApiException("An error occurred in create method of UserRepository. Please try again ");
         }
 
     }
