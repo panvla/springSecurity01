@@ -1,6 +1,7 @@
 package com.vladimirpandurov.springSecurity01B.repository;
 
 import com.vladimirpandurov.springSecurity01B.domain.User;
+import com.vladimirpandurov.springSecurity01B.dto.UserDTO;
 
 import java.util.Collection;
 
@@ -14,4 +15,6 @@ public interface UserRepository<T extends User> {
 
     /* More Complex Operations */
     T getUserByEmail(String email);
+
+    void sendVerificationCode(UserDTO user);
 }
