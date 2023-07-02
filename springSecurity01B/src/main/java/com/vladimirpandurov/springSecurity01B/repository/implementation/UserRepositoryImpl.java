@@ -1,10 +1,12 @@
 package com.vladimirpandurov.springSecurity01B.repository.implementation;
 
 import com.vladimirpandurov.springSecurity01B.domain.User;
+import com.vladimirpandurov.springSecurity01B.domain.UserPrincipal;
 import com.vladimirpandurov.springSecurity01B.enumeration.VerificatioinType;
 import com.vladimirpandurov.springSecurity01B.exception.ApiException;
 import com.vladimirpandurov.springSecurity01B.repository.RoleRepository;
 import com.vladimirpandurov.springSecurity01B.repository.UserRepository;
+import com.vladimirpandurov.springSecurity01B.rowmapper.UserRowMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -13,6 +15,9 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Repository;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -29,7 +34,7 @@ import static com.vladimirpandurov.springSecurity01B.query.UserQuery.*;
 @Repository
 @RequiredArgsConstructor
 @Slf4j
-public class UserRepositoryImpl implements UserRepository<User> {
+public class UserRepositoryImpl implements UserRepository<User>, UserDetailsService {
 
 
     private final NamedParameterJdbcTemplate jdbc;
@@ -50,7 +55,7 @@ public class UserRepositoryImpl implements UserRepository<User> {
             String verificationUrl = getVerificationUrl(UUID.randomUUID().toString(), ACCOUNT.getType());
             jdbc.update(INSERT_ACCOUNT_VERIFICATION_URL_QUERY, Map.of("userId", user.getId(), "url", verificationUrl));
             //emailService.sendVerificationUrl(user.getFirstName(), user.getEmail(), verificationUrl, ACCOUNT.getType());
-            user.setEnabled(false);
+            user.setEnabled(true);
             user.setNotLocked(true);
             return user;
         } catch (Exception exception){
@@ -92,10 +97,36 @@ public class UserRepositoryImpl implements UserRepository<User> {
                 .addValue("firstName", user.getFirstName())
                 .addValue("lastName", user.getLastName())
                 .addValue("email", user.getEmail())
-                .addValue("password", encoder.encode(user.getFirstName()));
+                .addValue("password", encoder.encode(user.getPassword()));
     }
 
     private String getVerificationUrl(String key, String type){
         return ServletUriComponentsBuilder.fromCurrentContextPath().path("/user/verify/" + type + "/" + key).toUriString();
+    }
+
+    @Override
+    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        User user = getUserByEmail(email);
+        if(user == null){
+            log.error("User not found in the database");
+            throw new UsernameNotFoundException("User not found in the database");
+        }else {
+            UserPrincipal userPrincipal = new UserPrincipal(user, this.roleRepository.getRoleByUserId(user.getId()));
+            return userPrincipal;
+        }
+    }
+
+    @Override
+    public User getUserByEmail(String email) {
+        try{
+            User user = jdbc.queryForObject(SELECT_USER_BY_EMAIL_QUERY, Map.of("email", email), new UserRowMapper());
+            return user;
+        }catch (EmptyResultDataAccessException exception){
+            log.error("No user found by email");
+            throw new ApiException("No user found by email: " + email );
+        }catch (Exception exception){
+            log.error(exception.getMessage());
+            throw new ApiException("An error occurred. Please try again.");
+        }
     }
 }
