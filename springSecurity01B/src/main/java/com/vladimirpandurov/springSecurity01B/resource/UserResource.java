@@ -2,8 +2,11 @@ package com.vladimirpandurov.springSecurity01B.resource;
 
 import com.vladimirpandurov.springSecurity01B.domain.HttpResponse;
 import com.vladimirpandurov.springSecurity01B.domain.User;
+import com.vladimirpandurov.springSecurity01B.domain.UserPrincipal;
 import com.vladimirpandurov.springSecurity01B.dto.UserDTO;
 import com.vladimirpandurov.springSecurity01B.form.LoginForm;
+import com.vladimirpandurov.springSecurity01B.provider.TokenProvider;
+import com.vladimirpandurov.springSecurity01B.service.RoleService;
 import com.vladimirpandurov.springSecurity01B.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +33,9 @@ import java.util.Map;
 public class UserResource {
 
     private final UserService userService;
+    private final RoleService roleService;
     private final AuthenticationManager authenticationManager;
+    private final TokenProvider tokenProvider;
 
     @PostMapping("/login")
     public ResponseEntity<HttpResponse> login(@RequestBody @Valid LoginForm loginForm) {
@@ -55,6 +60,8 @@ public class UserResource {
         );
     }
 
+
+
     private URI getUri(Long userId) {
         return URI.create(ServletUriComponentsBuilder.fromCurrentContextPath().path("/user/get/" + userId).toUriString());
     }
@@ -63,12 +70,18 @@ public class UserResource {
         return ResponseEntity.ok().body(
                 HttpResponse.builder()
                         .timeStamp(LocalDateTime.now().toString())
-                        .data(Map.of("user", user))
+                        .data(Map.of("user", user,
+                                "access_token", tokenProvider.createAccessToken(getUserPrincipal(user)),
+                                "refresh_token", tokenProvider.createRefreshToken(getUserPrincipal(user))))
                         .message("Login Success")
                         .status(HttpStatus.OK)
                         .statusCode(HttpStatus.OK.value())
                         .build()
         );
+    }
+
+    private UserPrincipal getUserPrincipal(UserDTO user) {
+        return new UserPrincipal(userService.getUser(user.getEmail()), this.roleService.getRoleByUserId(user.getId()));
     }
 
     private ResponseEntity<HttpResponse> sendVerificationCode(UserDTO user) {
