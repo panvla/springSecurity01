@@ -141,8 +141,27 @@ public class UserRepositoryImpl implements UserRepository<User>, UserDetailsServ
             jdbc.update(DELETE_VERIFICATION_CODE_BY_USER_ID, Map.of("id", user.getId()));
             jdbc.update(INSERT_VERIFICATION_CODE_QUERY, Map.of("user_id", user.getId(), "code", verificationCode, "expirationDate", expirationDate));
             //sendSms(user.getPhone(), "From: SecureCapita \nVerification code\n" + verificationCode);
+            log.info("Phone number : {}, verification code : {}", user.getPhone(), verificationCode);
         }catch(Exception exception){
             log.error(exception.getMessage());
+            throw new ApiException("An error occurred. Please try again.");
+        }
+    }
+
+    @Override
+    public User verifyCode(String email, String code) {
+        try{
+            User userByCode = jdbc.queryForObject(SELECT_USER_BY_USER_CODE_QUERY, Map.of("code", code), new UserRowMapper());
+            User userByEmail = jdbc.queryForObject(SELECT_USER_BY_EMAIL_QUERY, Map.of("email", email), new UserRowMapper());
+            if(userByCode.getEmail().equalsIgnoreCase(userByEmail.getEmail())){
+                jdbc.update(DELETE_CODE_BY_CODE, Map.of("code", code));
+                return userByCode;
+            }else{
+                throw new ApiException("Code is invalid.Please try again");
+            }
+        }catch (EmptyResultDataAccessException exception){
+            throw new ApiException("Unable to find record");
+        }catch (Exception exception){
             throw new ApiException("An error occurred. Please try again.");
         }
     }

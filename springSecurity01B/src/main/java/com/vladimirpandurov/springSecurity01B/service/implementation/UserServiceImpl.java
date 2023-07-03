@@ -35,4 +35,9 @@ public class UserServiceImpl implements UserService {
     public User getUser(String email) {
         return this.userRepository.getUserByEmail(email);
     }
+
+    @Override
+    public UserDTO verifyCode(String email, String code) {
+        return UserDTOMapper.fromUser(userRepository.verifyCode(email,code));
+    }
 }
