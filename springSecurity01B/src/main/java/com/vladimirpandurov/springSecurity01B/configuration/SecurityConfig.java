@@ -1,5 +1,6 @@
 package com.vladimirpandurov.springSecurity01B.configuration;
 
+import com.vladimirpandurov.springSecurity01B.filter.CustomAuthorizationFilter;
 import com.vladimirpandurov.springSecurity01B.handler.CustomAccessDeniedHandler;
 import com.vladimirpandurov.springSecurity01B.handler.CustomAuthenticationEntryPoint;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +10,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -17,6 +19,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -28,6 +31,7 @@ public class SecurityConfig {
     private final CustomAccessDeniedHandler customAccessDeniedHandler;
     private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
     private final BCryptPasswordEncoder encoder;
+    private final CustomAuthorizationFilter customAuthorizationFilter;
     private static final String[] PUBLIC_URLS = {"/user/login/**", "/user/register/**", "/user/verify/code/**"};
 
     @Bean
@@ -39,6 +43,7 @@ public class SecurityConfig {
         http.authorizeHttpRequests().requestMatchers(HttpMethod.DELETE, "/customer/delete/**").hasAnyAuthority("DELETE:CUSTOMER");
         http.exceptionHandling().accessDeniedHandler(customAccessDeniedHandler).authenticationEntryPoint(customAuthenticationEntryPoint);
         http.authorizeHttpRequests().anyRequest().authenticated();
+        http.addFilterBefore(customAuthorizationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
 
     }
