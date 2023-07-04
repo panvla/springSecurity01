@@ -4,6 +4,7 @@ import com.vladimirpandurov.springSecurity01B.domain.HttpResponse;
 import com.vladimirpandurov.springSecurity01B.domain.User;
 import com.vladimirpandurov.springSecurity01B.domain.UserPrincipal;
 import com.vladimirpandurov.springSecurity01B.dto.UserDTO;
+import com.vladimirpandurov.springSecurity01B.dtomapper.UserDTOMapper;
 import com.vladimirpandurov.springSecurity01B.form.LoginForm;
 import com.vladimirpandurov.springSecurity01B.provider.TokenProvider;
 import com.vladimirpandurov.springSecurity01B.service.RoleService;
@@ -82,7 +83,7 @@ public class UserResource {
     }
 
     private UserPrincipal getUserPrincipal(UserDTO user) {
-        return new UserPrincipal(userService.getUser(user.getEmail()), this.roleService.getRoleByUserId(user.getId()));
+        return new UserPrincipal(UserDTOMapper.toUser(userService.getUserByEmail(user.getEmail())), this.roleService.getRoleByUserId(user.getId()));
     }
 
     private ResponseEntity<HttpResponse> sendVerificationCode(UserDTO user) {

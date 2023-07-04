@@ -1,13 +1,16 @@
 package com.vladimirpandurov.springSecurity01B.service.implementation;
 
+import com.vladimirpandurov.springSecurity01B.domain.Role;
 import com.vladimirpandurov.springSecurity01B.domain.User;
 import com.vladimirpandurov.springSecurity01B.dto.UserDTO;
-import com.vladimirpandurov.springSecurity01B.dtomapper.UserDTOMapper;
+import com.vladimirpandurov.springSecurity01B.repository.RoleRepository;
 import com.vladimirpandurov.springSecurity01B.repository.UserRepository;
 import com.vladimirpandurov.springSecurity01B.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+
+import static com.vladimirpandurov.springSecurity01B.dtomapper.UserDTOMapper.fromUser;
 
 @Service
 @RequiredArgsConstructor
@@ -15,15 +18,16 @@ import org.springframework.stereotype.Service;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository<User> userRepository;
+    private final RoleRepository<Role> roleRepository;
 
     @Override
     public UserDTO createUser(User user) {
-        return UserDTOMapper.fromUser(userRepository.create(user));
+        return mapToUserDTO(userRepository.create(user));
     }
 
     @Override
     public UserDTO getUserByEmail(String email) {
-        return UserDTOMapper.fromUser(userRepository.getUserByEmail(email));
+        return mapToUserDTO(userRepository.getUserByEmail(email));
     }
 
     @Override
@@ -32,12 +36,11 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public User getUser(String email) {
-        return this.userRepository.getUserByEmail(email);
+    public UserDTO verifyCode(String email, String code) {
+        return mapToUserDTO(userRepository.verifyCode(email,code));
     }
 
-    @Override
-    public UserDTO verifyCode(String email, String code) {
-        return UserDTOMapper.fromUser(userRepository.verifyCode(email,code));
+    private UserDTO mapToUserDTO (User user) {
+        return fromUser(user, roleRepository.getRoleByUserId(user.getId()));
     }
 }

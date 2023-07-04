@@ -45,6 +45,38 @@ public class UserRepositoryImpl implements UserRepository<User>, UserDetailsServ
     private final BCryptPasswordEncoder encoder;
 
     @Override
+    public Collection<User> list(int page, int pageSize) {
+        return null;
+    }
+
+    @Override
+    public User get(Long id) {
+        return null;
+    }
+
+    @Override
+    public User update(User data) {
+        return null;
+    }
+
+    @Override
+    public Boolean delete(Long id) {
+        return null;
+    }
+
+    //UserDetailsService override
+    @Override
+    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        User user = getUserByEmail(email);
+        if(user == null){
+            log.error("User not found in the database");
+            throw new UsernameNotFoundException("User not found in the database");
+        }else {
+            UserPrincipal userPrincipal = new UserPrincipal(user, this.roleRepository.getRoleByUserId(user.getId()));
+            return userPrincipal;
+        }
+    }
+    @Override
     public User create(User user) {
         //Check the email is unique
         if(getEmailCount(user.getEmail().trim().toLowerCase()) > 0 ) throw new ApiException("Email already in use. Please use a different email and try again");
@@ -67,58 +99,6 @@ public class UserRepositoryImpl implements UserRepository<User>, UserDetailsServ
         }
 
     }
-
-
-
-
-    @Override
-    public Collection<User> list(int page, int pageSize) {
-        return null;
-    }
-
-    @Override
-    public User get(Long id) {
-        return null;
-    }
-
-    @Override
-    public User update(User data) {
-        return null;
-    }
-
-    @Override
-    public Boolean delete(Long id) {
-        return null;
-    }
-
-    private Integer getEmailCount(String email) {
-        return jdbc.queryForObject(COUNT_USER_EMAIL_QUERY, Map.of("email", email), Integer.class);
-    }
-
-    private SqlParameterSource getSqlParameterSource(User user) {
-        return new MapSqlParameterSource()
-                .addValue("firstName", user.getFirstName())
-                .addValue("lastName", user.getLastName())
-                .addValue("email", user.getEmail())
-                .addValue("password", encoder.encode(user.getPassword()));
-    }
-
-    private String getVerificationUrl(String key, String type){
-        return ServletUriComponentsBuilder.fromCurrentContextPath().path("/user/verify/" + type + "/" + key).toUriString();
-    }
-
-    @Override
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        User user = getUserByEmail(email);
-        if(user == null){
-            log.error("User not found in the database");
-            throw new UsernameNotFoundException("User not found in the database");
-        }else {
-            UserPrincipal userPrincipal = new UserPrincipal(user, this.roleRepository.getRoleByUserId(user.getId()));
-            return userPrincipal;
-        }
-    }
-
     @Override
     public User getUserByEmail(String email) {
         try{
@@ -132,7 +112,6 @@ public class UserRepositoryImpl implements UserRepository<User>, UserDetailsServ
             throw new ApiException("An error occurred. Please try again.");
         }
     }
-
     @Override
     public void sendVerificationCode(UserDTO user) {
         String expirationDate = format(addDays(new Date(), 1), DATA_FORMAT);
@@ -147,9 +126,9 @@ public class UserRepositoryImpl implements UserRepository<User>, UserDetailsServ
             throw new ApiException("An error occurred. Please try again.");
         }
     }
-
     @Override
     public User verifyCode(String email, String code) {
+        if(isVerificationCodeExpired(code)) throw new ApiException("This code has expired. Please login again.");
         try{
             User userByCode = jdbc.queryForObject(SELECT_USER_BY_USER_CODE_QUERY, Map.of("code", code), new UserRowMapper());
             User userByEmail = jdbc.queryForObject(SELECT_USER_BY_EMAIL_QUERY, Map.of("email", email), new UserRowMapper());
@@ -165,4 +144,33 @@ public class UserRepositoryImpl implements UserRepository<User>, UserDetailsServ
             throw new ApiException("An error occurred. Please try again.");
         }
     }
+
+    private Boolean isVerificationCodeExpired(String code) {
+        try{
+            return jdbc.queryForObject(SELECT_CODE_EXPIRATION_QUERY, Map.of("code", code), Boolean.class);
+        }catch (EmptyResultDataAccessException exception){
+            throw new ApiException("This code is not valid. Please login again.");
+        }catch (Exception exception){
+            log.info(exception.getMessage());
+            throw new ApiException("An error occurred. Please try again.");
+        }
+    }
+
+    private SqlParameterSource getSqlParameterSource(User user) {
+        return new MapSqlParameterSource()
+                .addValue("firstName", user.getFirstName())
+                .addValue("lastName", user.getLastName())
+                .addValue("email", user.getEmail())
+                .addValue("password", encoder.encode(user.getPassword()));
+    }
+
+    private String getVerificationUrl(String key, String type){
+        return ServletUriComponentsBuilder.fromCurrentContextPath().path("/user/verify/" + type + "/" + key).toUriString();
+    }
+
+    private Integer getEmailCount(String email) {
+        return jdbc.queryForObject(COUNT_USER_EMAIL_QUERY, Map.of("email", email), Integer.class);
+    }
+
+
 }
