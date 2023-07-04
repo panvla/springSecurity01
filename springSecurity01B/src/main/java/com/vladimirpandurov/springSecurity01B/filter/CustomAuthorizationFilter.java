@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
+import static com.vladimirpandurov.springSecurity01B.utils.ExceptionUtils.processError;
 import static java.util.Arrays.asList;
 import static java.util.Optional.ofNullable;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
@@ -49,7 +50,7 @@ public class CustomAuthorizationFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
         }catch (Exception exception){
             log.error(exception.getMessage());
-            //processError(request, response, exception);
+            processError(request, response, exception);
         }
     }
 
