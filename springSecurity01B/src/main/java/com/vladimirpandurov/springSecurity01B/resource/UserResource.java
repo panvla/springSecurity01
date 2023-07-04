@@ -9,6 +9,7 @@ import com.vladimirpandurov.springSecurity01B.form.LoginForm;
 import com.vladimirpandurov.springSecurity01B.provider.TokenProvider;
 import com.vladimirpandurov.springSecurity01B.service.RoleService;
 import com.vladimirpandurov.springSecurity01B.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -79,6 +80,16 @@ public class UserResource {
     public ResponseEntity<HttpResponse> verifyCode(@PathVariable("email") String email, @PathVariable("code") String code) {
         UserDTO user = userService.verifyCode(email, code);
         return sendResponse(user);
+    }
+    @RequestMapping("/error")
+    public ResponseEntity<HttpResponse> handleError(HttpServletRequest request){
+        return ResponseEntity.badRequest().body(
+                HttpResponse.builder()
+                .timeStamp(LocalDateTime.now().toString())
+                .reason("An error occurred " + request.getMethod())
+                .status(HttpStatus.NOT_FOUND)
+                .statusCode(HttpStatus.NOT_FOUND.value())
+                .build());
     }
 
     private URI getUri(Long userId) {
