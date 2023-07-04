@@ -51,12 +51,6 @@ public class UserResource {
         return user.isUsingMfa() ? sendVerificationCode(user) : sendResponse(user);
     }
 
-    private UserDTO getAuthenticatedUser(Authentication authentication){
-        return ((UserPrincipal) authentication.getPrincipal()).getUser();
-    }
-
-
-
     @PostMapping("/register")
     public ResponseEntity<HttpResponse> saveUser(@RequestBody @Valid User user) {
         UserDTO userDTO = this.userService.createUser(user);
@@ -70,6 +64,47 @@ public class UserResource {
                         .build()
         );
     }
+    //for reset password when user is not loged in
+    @GetMapping("/resetpassword/{email}")
+    public ResponseEntity<HttpResponse> resetPassword(@PathVariable("email") String email) {
+        userService.resetPassword(email);
+        return ResponseEntity.ok().body(
+                HttpResponse.builder()
+                .timeStamp(LocalDateTime.now().toString())
+                .message("Email sent. Please check your email to reset your password.")
+                .status(HttpStatus.OK)
+                .statusCode(HttpStatus.OK.value())
+                .build()
+        );
+    }
+    //for reset password when user is not loged in
+    @GetMapping("/verify/password/{key}")
+    public ResponseEntity<HttpResponse> verifyPasswordUrl(@PathVariable("key") String key) {
+        UserDTO user = userService.verifyPasswordKey(key);
+        return ResponseEntity.ok().body(
+                HttpResponse.builder()
+                .timeStamp(LocalDateTime.now().toString())
+                .data(Map.of("user", user))
+                .message("Please enter a new password")
+                .status(HttpStatus.OK)
+                .statusCode(HttpStatus.OK.value())
+                .build());
+    }
+    //for reset password when user is not logged in
+    @PostMapping("/resetpassword/{key}/{password}/{confirmPassword}")
+    public ResponseEntity<HttpResponse> resetPasswordWithUrl(@PathVariable("key") String key, @PathVariable("password") String password,
+                                                          @PathVariable("confirmPassword") String confirmPassword){
+        userService.renewPassword(key, password, confirmPassword);
+        return ResponseEntity.ok().body(
+                HttpResponse.builder()
+                .timeStamp(LocalDateTime.now().toString())
+                .message("Password reset successfully")
+                .status(HttpStatus.OK)
+                .statusCode(HttpStatus.OK.value())
+                .build()
+        );
+    }
+
     @GetMapping("/profile")
     public ResponseEntity<HttpResponse> profile(Authentication authentication){
         UserDTO user = userService.getUserByEmail(authentication.getName());
@@ -90,6 +125,7 @@ public class UserResource {
         UserDTO user = userService.verifyCode(email, code);
         return sendResponse(user);
     }
+
     @RequestMapping("/error")
     public ResponseEntity<HttpResponse> handleError(HttpServletRequest request){
         return ResponseEntity.badRequest().body(
@@ -145,6 +181,10 @@ public class UserResource {
             throw new ApiException(exception.getMessage());
         }
 
+    }
+
+    private UserDTO getAuthenticatedUser(Authentication authentication){
+        return ((UserPrincipal) authentication.getPrincipal()).getUser();
     }
 
 }

@@ -27,6 +27,7 @@ import java.util.*;
 
 import static com.vladimirpandurov.springSecurity01B.enumeration.RoleType.ROLE_USER;
 import static com.vladimirpandurov.springSecurity01B.enumeration.VerificatioinType.ACCOUNT;
+import static com.vladimirpandurov.springSecurity01B.enumeration.VerificatioinType.PASSWORD;
 import static com.vladimirpandurov.springSecurity01B.query.UserQuery.*;
 import static com.vladimirpandurov.springSecurity01B.utils.SmsUtils.sendSms;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
@@ -142,6 +143,57 @@ public class UserRepositoryImpl implements UserRepository<User>, UserDetailsServ
             throw new ApiException("Unable to find record");
         }catch (Exception exception){
             throw new ApiException("An error occurred. Please try again.");
+        }
+    }
+
+    @Override
+    public void resetPassword(String email) {
+        if(getEmailCount(email.trim().toLowerCase()) <= 0) throw new ApiException("There is no account for this email address.");
+        try{
+                String expirationDate = format(addDays(new Date(), 1), DATA_FORMAT);
+                User user = getUserByEmail(email);
+                String verificationUrl = getVerificationUrl(UUID.randomUUID().toString(), PASSWORD.getType());
+                jdbc.update(DELETE_PASSWORD_VERIFICATION_BY_USER_ID_QUERY, Map.of("user_id" , user.getId()));
+                jdbc.update(INSERT_PASSWORD_VERIFICATION_QUERY, Map.of("user_id", user.getId(), "url", verificationUrl, "expiration_data", expirationDate));
+                //send email with url to user
+                log.info("Verification URL: {}", verificationUrl);
+
+        }catch (Exception exception){
+            throw new ApiException("An error occurred. Please try again.");
+        }
+    }
+
+    @Override
+    public User verifyPasswordKey(String key) {
+        if(isLinkExpired(key, PASSWORD)) throw new ApiException("This link has expired. Please reset your password again");
+        try{
+            User user =  jdbc.queryForObject(SELECT_USER_BY_PASSWORD_URL_QUERY, Map.of("url", getVerificationUrl(key, PASSWORD.getType())), new UserRowMapper());
+            return user;
+        }catch (EmptyResultDataAccessException exception) {
+            throw new ApiException("This link is not valid. Please reset your password again");
+        }catch (Exception exception) {
+            throw new ApiException("An error occurred. Please try again");
+        }
+    }
+
+    @Override
+    public void renewPassword(String key, String password, String confirmPassword) {
+        if(!password.equals(confirmPassword)) throw new ApiException("Passwords don't match. Please try again.");
+        try{
+            jdbc.update(UPDATE_USER_PASSWORD_BY_URL_QUERY, Map.of("password", encoder.encode(password), "url", getVerificationUrl(key, PASSWORD.getType())));
+            jdbc.update(DELETE_VERIFICATION_BY_URL_QUERY, Map.of("url", getVerificationUrl(key, PASSWORD.getType())));
+        }catch (Exception exception){
+            throw new ApiException("An error occurred. Please try again.");
+        }
+    }
+
+    private Boolean isLinkExpired(String key, VerificatioinType password) {
+        try{
+            return jdbc.queryForObject(SELECT_EXPIRATION_BY_URL, Map.of("url", getVerificationUrl(key, password.getType())), Boolean.class);
+        }catch (EmptyResultDataAccessException exception){
+            throw new ApiException("This is not valid. Please reset your password again.");
+        }catch (Exception exception){
+            throw new ApiException("An error occurred. Please try again");
         }
     }
 
