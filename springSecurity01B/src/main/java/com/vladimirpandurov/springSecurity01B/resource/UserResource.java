@@ -5,11 +5,13 @@ import com.vladimirpandurov.springSecurity01B.domain.User;
 import com.vladimirpandurov.springSecurity01B.domain.UserPrincipal;
 import com.vladimirpandurov.springSecurity01B.dto.UserDTO;
 import com.vladimirpandurov.springSecurity01B.dtomapper.UserDTOMapper;
+import com.vladimirpandurov.springSecurity01B.exception.ApiException;
 import com.vladimirpandurov.springSecurity01B.form.LoginForm;
 import com.vladimirpandurov.springSecurity01B.provider.TokenProvider;
 import com.vladimirpandurov.springSecurity01B.service.RoleService;
 import com.vladimirpandurov.springSecurity01B.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -25,6 +27,7 @@ import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.Map;
 
+import static com.vladimirpandurov.springSecurity01B.utils.ExceptionUtils.processError;
 import static org.springframework.security.authentication.UsernamePasswordAuthenticationToken.unauthenticated;
 
 
@@ -38,12 +41,18 @@ public class UserResource {
     private final RoleService roleService;
     private final AuthenticationManager authenticationManager;
     private final TokenProvider tokenProvider;
+    private final HttpServletRequest request;
+    private final HttpServletResponse response;
 
     @PostMapping("/login")
     public ResponseEntity<HttpResponse> login(@RequestBody @Valid LoginForm loginForm) {
-        authenticationManager.authenticate(unauthenticated(loginForm.getEmail(), loginForm.getPassword()));
-        UserDTO user = userService.getUserByEmail(loginForm.getEmail());
+        Authentication authentication = authenticate(loginForm.getEmail(), loginForm.getPassword());
+        UserDTO user = getAuthenticatedUser(authentication);
         return user.isUsingMfa() ? sendVerificationCode(user) : sendResponse(user);
+    }
+
+    private UserDTO getAuthenticatedUser(Authentication authentication){
+        return ((UserPrincipal) authentication.getPrincipal()).getUser();
     }
 
 
@@ -125,6 +134,17 @@ public class UserResource {
                         .statusCode(HttpStatus.OK.value())
                         .build()
         );
+    }
+
+    private Authentication authenticate(String email, String password) {
+        try{
+            Authentication authentication = authenticationManager.authenticate(unauthenticated(email, password));
+            return authentication;
+        }catch (Exception exception){
+            processError(request, response, exception);
+            throw new ApiException(exception.getMessage());
+        }
+
     }
 
 }
