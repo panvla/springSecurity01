@@ -28,6 +28,7 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 import static com.vladimirpandurov.springSecurity01B.utils.ExceptionUtils.processError;
+import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.security.authentication.UsernamePasswordAuthenticationToken.unauthenticated;
 
 
@@ -43,6 +44,7 @@ public class UserResource {
     private final TokenProvider tokenProvider;
     private final HttpServletRequest request;
     private final HttpServletResponse response;
+    private static final String TOKEN_PREFIX = "Bearer ";
 
     @PostMapping("/login")
     public ResponseEntity<HttpResponse> login(@RequestBody @Valid LoginForm loginForm) {
@@ -136,6 +138,33 @@ public class UserResource {
         UserDTO user = userService.verifyCode(email, code);
         return sendResponse(user);
     }
+    @GetMapping("/refresh/token")
+    public ResponseEntity<HttpResponse> refreshToken(HttpServletRequest request) {
+        if(isHeaderAndTokenValid(request)){
+            String token = request.getHeader(AUTHORIZATION).substring(TOKEN_PREFIX.length());
+            UserDTO user = userService.getUserByEmail(tokenProvider.getSubject(token, request));
+            return ResponseEntity.ok().body(
+                    HttpResponse.builder()
+                            .timeStamp(LocalDateTime.now().toString())
+                            .data(Map.of("user", user,
+                                    "access_token", tokenProvider.createAccessToken(getUserPrincipal(user)),
+                                    "refresh_token", token))
+                            .message("Token refreshed")
+                            .status(HttpStatus.OK)
+                            .statusCode(HttpStatus.OK.value())
+                            .build());
+        }else {
+            return ResponseEntity.ok().body(
+                    HttpResponse.builder()
+                            .timeStamp(LocalDateTime.now().toString())
+                            .reason("Refresh Token missing or invalid")
+                            .status(HttpStatus.BAD_REQUEST)
+                            .statusCode(HttpStatus.BAD_REQUEST.value())
+                            .build());
+        }
+
+
+    }
 
 
 
@@ -148,6 +177,14 @@ public class UserResource {
                 .status(HttpStatus.NOT_FOUND)
                 .statusCode(HttpStatus.NOT_FOUND.value())
                 .build());
+    }
+
+    private boolean isHeaderAndTokenValid(HttpServletRequest request) {
+        return (request.getHeader(AUTHORIZATION) != null) &&
+                (request.getHeader(AUTHORIZATION).startsWith(TOKEN_PREFIX)) &&
+                (tokenProvider.isTokenValid(tokenProvider.getSubject(request.getHeader(AUTHORIZATION).substring(TOKEN_PREFIX.length()), request),
+                        request.getHeader(AUTHORIZATION).substring(TOKEN_PREFIX.length())));
+
     }
 
     private URI getUri(Long userId) {
