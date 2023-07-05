@@ -64,6 +64,21 @@ public class UserResource {
                         .build()
         );
     }
+
+    @GetMapping("/profile")
+    public ResponseEntity<HttpResponse> profile(Authentication authentication){
+        UserDTO user = userService.getUserByEmail(authentication.getName());
+        log.info(authentication.getName());
+        return ResponseEntity.ok().body(
+                HttpResponse.builder()
+                        .timeStamp(LocalDateTime.now().toString())
+                        .data(Map.of("user", user))
+                        .message("Profile Retrieved")
+                        .status(HttpStatus.OK)
+                        .statusCode(HttpStatus.OK.value())
+                        .build()
+        );
+    }
     //for reset password when user is not loged in
     @GetMapping("/resetpassword/{email}")
     public ResponseEntity<HttpResponse> resetPassword(@PathVariable("email") String email) {
@@ -104,20 +119,16 @@ public class UserResource {
                 .build()
         );
     }
-
-    @GetMapping("/profile")
-    public ResponseEntity<HttpResponse> profile(Authentication authentication){
-        UserDTO user = userService.getUserByEmail(authentication.getName());
-        log.info(authentication.getName());
+    @GetMapping("/verify/account/{key}")
+    public ResponseEntity<HttpResponse> verifyAccount(@PathVariable("key") String key) {
+        UserDTO user = userService.verifyAccount(key);
         return ResponseEntity.ok().body(
                 HttpResponse.builder()
                 .timeStamp(LocalDateTime.now().toString())
-                .data(Map.of("user", user))
-                .message("Profile Retrieved")
+                .message(user.isEnabled() ? "Account already verified" : "Account verified")
                 .status(HttpStatus.OK)
                 .statusCode(HttpStatus.OK.value())
-                .build()
-        );
+                .build());
     }
 
     @GetMapping("/verify/code/{email}/{code}")
@@ -125,6 +136,8 @@ public class UserResource {
         UserDTO user = userService.verifyCode(email, code);
         return sendResponse(user);
     }
+
+
 
     @RequestMapping("/error")
     public ResponseEntity<HttpResponse> handleError(HttpServletRequest request){

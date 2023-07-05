@@ -32,7 +32,8 @@ public class SecurityConfig {
     private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
     private final BCryptPasswordEncoder encoder;
     private final CustomAuthorizationFilter customAuthorizationFilter;
-    private static final String[] PUBLIC_URLS = {"/user/login/**", "/user/register/**", "/user/verify/code/**", "/user/resetpassword/**" , "/user/verify/password/**"};
+    private static final String[] PUBLIC_URLS = {"/user/login/**", "/user/register/**",
+            "/user/verify/code/**", "/user/resetpassword/**" , "/user/verify/password/**", "/user/verify/account/**"};
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception{
